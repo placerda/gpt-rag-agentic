@@ -1,17 +1,14 @@
 from typing import Annotated
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.openai import ChatCompletionAgent
 
+# Import our newly converted Semantic Kernel plugins
+import tools.ragindex.vector_index_retrieval as ragindex_plugin
+import tools.common.datetools as common_plugin
 
-from autogen_agentchat.agents import AssistantAgent
-from autogen_core.tools import FunctionTool
-
-from tools import get_time, get_today_date
-from tools import vector_index_retrieve
 from tools.ragindex.types import VectorIndexRetrievalResult
-
 from .base_agent_strategy import BaseAgentStrategy
 from ..constants import Strategy
-
-from autogen_agentchat.messages import ToolCallSummaryMessage
 
 class ClassicRAGAgentStrategy(BaseAgentStrategy):
 
@@ -21,76 +18,78 @@ class ClassicRAGAgentStrategy(BaseAgentStrategy):
 
     async def create_agents(self, history, client_principal=None, access_token=None, output_mode=None, output_format=None):
         """
-        Classic RAG creation strategy that creates the basic agents and registers functions.
-        
-        Parameters:
-        - history: The conversation history, which will be summarized to provide context for the assistant's responses.
-        
-        Returns:
-        - agent_configuration: A dictionary that includes the agents team, default model client, termination conditions and selector function.
-
-        Note:
-        To use a different model for an specific agent, instantiate a separate AzureOpenAIChatCompletionClient and assign it instead of using self._get_model_client().
+        Creates and configures the main assistant and chat closure agents using Semantic Kernel plugins.
+        This strategy sets up its own Kernel instance, registers only the needed skills, and uses
+        the SK functions as tools.
         """
+        # Create a Kernel instance for the strategy.
+        kernel = Kernel()
+        # Register only the necessary plugins.
+        kernel.register_skill("ragindex", ragindex_plugin)
+        kernel.register_skill("common", common_plugin)
 
-        # Model Context
-        shared_context = await self._get_model_context(history) 
+        # Build shared conversation context.
+        shared_context = await self._get_model_context(history)
 
-        # Wrapper Functions for Tools
-
-        ## function closure for vector_index_retrieve
+        # Define a wrapper for vector_index_retrieve that calls the SK plugin function.
         async def vector_index_retrieve_wrapper(
-            input: Annotated[str, "An optimized query string based on the user's ask and conversation history, when available"]
+            input: Annotated[str, "An optimized query string based on the user's ask and conversation history"]
         ) -> VectorIndexRetrievalResult:
-            return await vector_index_retrieve(input, self._generate_security_ids(client_principal))
+            security_ids = self._generate_security_ids(client_principal)
+            # Call the SK function from the registered ragindex skill.
+            return await kernel.skills["ragindex"].vector_index_retrieve(input, security_ids)
 
-        vector_index_retrieve_tool = FunctionTool(
-            vector_index_retrieve_wrapper, name="vector_index_retrieve", description="Performs a vector search using Azure AI Search to retrieve relevant sources for answering the user's query."
-        )
+        # Get additional tools from the 'common' plugin.
+        get_today_date_tool = kernel.skills["common"].get_today_date  # Already decorated as an SK function.
+        get_time_tool = kernel.skills["common"].get_time
 
-        # Agents
-
-        ## Main Assistant Agent
+        # Retrieve the main assistant prompt.
         assistant_prompt = await self._read_prompt("main_assistant")
-        main_assistant = AssistantAgent(
-            name="main_assistant",
-            system_message=assistant_prompt,
-            model_client=self._get_model_client(), 
-            tools=[vector_index_retrieve_tool, get_today_date, get_time],
-            reflect_on_tool_use=True,
-            model_context=shared_context
+
+        # Create the main assistant agent using our configured kernel.
+        # Here we directly set the instructions to the prompt.
+        main_assistant = ChatCompletionAgent(
+            kernel=kernel,
+            deployment_name=self.chat_deployment,
+            model=self.model,
+            instructions=assistant_prompt,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            response_format=None  # Optionally, use ChatGroupResponse if needed.
+        )
+        # Attach the SK tool wrappers as a tools list.
+        main_assistant.tools = [vector_index_retrieve_wrapper, get_today_date_tool, get_time_tool]
+        main_assistant.model_context = shared_context
+
+        # Create the chat closure agent (using, for example, a JSON prompt for closure).
+        # (You can adjust the prompt name and response format as desired.)
+        chat_closure_prompt = await self._read_prompt("chat_closure_json")
+        chat_closure = ChatCompletionAgent(
+            kernel=kernel,
+            deployment_name=self.chat_deployment,
+            model=self.model,
+            instructions=chat_closure_prompt,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            response_format=None
         )
 
-        ## Chat Closure Agent
-        chat_closure = await self._create_chat_closure_agent(output_format, output_mode)
-
-        # Agent Configuration
-
-        # Optional: Override the termination condition for the assistant. Set None to disable each termination condition.
-        # self.max_rounds = int(os.getenv('MAX_ROUNDS', 8))
-        # self.terminate_message = "TERMINATE"
-
-        # Optional: Define a selector function to determine which agent to use based on the user's ask.
+        # Define a custom selector function that picks the next agent based on the source of the last message.
         def custom_selector_func(messages):
-            """
-            Selects the next agent based on the source of the last message.
-            
-            Transition Rules:
-               user -> assistant
-               assistant -> None (SelectorGroupChat will handle transition)
-            """
             last_msg = messages[-1]
-            if last_msg.source == "user":
+            if getattr(last_msg, "source", None) == "user":
                 return "main_assistant"
-            if last_msg.source == "main_assistant" and isinstance(last_msg, ToolCallSummaryMessage):
-                return "main_assistant"
-            if last_msg.source in ["main_assistant"]:
-                return "chat_closure"                 
+            if getattr(last_msg, "source", None) == "main_assistant":
+                if hasattr(last_msg, "text") and last_msg.text.strip().endswith(self.terminate_message):
+                    return "chat_closure"
+                else:
+                    return "main_assistant"
             return None
 
-        
         self.selector_func = custom_selector_func
-        
+
+        # Register agents by name; here, we use the names set within the agent objects.
         self.agents = [main_assistant, chat_closure]
-        
+
+        # Return the configuration dictionary (API remains unchanged).
         return self._get_agents_configuration()

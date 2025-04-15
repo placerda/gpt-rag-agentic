@@ -5,7 +5,7 @@
       "slotSetting": false
     },
     {
-      "name": "AUTOGEN_ORCHESTRATION_STRATEGY",
+      "name": "ORCHESTRATION_STRATEGY",
       "value": "multimodal_rag",
       "slotSetting": false
     },

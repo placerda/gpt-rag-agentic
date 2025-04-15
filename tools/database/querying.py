@@ -6,12 +6,10 @@ from connectors.cosmosdb import CosmosDBClient
 from connectors.fabric import SQLEndpointClient, SemanticModelClient
 from connectors.types import SQLEndpointConfig, SemanticModelConfig, SQLDatabaseConfig
 from connectors.sqldbs import SQLDBClient
+from semantic_kernel.skill_definition import sk_function
 
+@sk_function(description="Validates the syntax of an SQL query using sqlparse.")
 def validate_sql_query(query: Annotated[str, "SQL Query"]) -> ValidateSQLQueryResult:
-    """
-    Validate the syntax of an SQL query.
-    Returns a ValidateSQLQueryResult indicating validity.
-    """
     try:
         parsed = sqlparse.parse(query)
         if parsed and len(parsed) > 0:
@@ -21,17 +19,14 @@ def validate_sql_query(query: Annotated[str, "SQL Query"]) -> ValidateSQLQueryRe
     except Exception as e:
         return ValidateSQLQueryResult(is_valid=False, error=str(e))
 
+@sk_function(description="Executes a DAX query on a semantic model datasource and returns the results.")
 async def execute_dax_query(datasource: Annotated[str, "Target datasource"], query: Annotated[str, "DAX Query"], access_token: Annotated[str, "User Access Token"]) -> ExecuteQueryResult:
-    """
-    Execute a DAX query against a semantic model datasource and return the results.
-    """
     try:
         cosmosdb = CosmosDBClient()
         datasources_container = os.environ.get('DATASOURCES_CONTAINER', 'datasources')
         datasource_config = await cosmosdb.get_document(datasources_container, datasource)
         if not datasource_config or datasource_config.get("type") != "semantic_model":
             return ExecuteQueryResult(error=f"{datasource} datasource configuration not found or invalid for Semantic Model.")
-    
         semantic_model_config = SemanticModelConfig(
             id=datasource_config.get("id"),
             description=datasource_config.get("description"),
@@ -41,34 +36,25 @@ async def execute_dax_query(datasource: Annotated[str, "Target datasource"], que
             workspace=datasource_config.get("workspace"),
             tenant_id=datasource_config.get("tenant_id"),
             client_id=datasource_config.get("client_id")
-        ) 
+        )
         semantic_client = SemanticModelClient(semantic_model_config)
         results = await semantic_client.execute_restapi_dax_query(dax_query=query, user_token=access_token)
         return ExecuteQueryResult(results=results)
     except Exception as e:
         return ExecuteQueryResult(error=str(e))
 
+@sk_function(description="Executes a SQL query on a datasource (sql_endpoint or sql_database) and returns the results (only SELECT statements are allowed).")
 async def execute_sql_query(
     datasource: Annotated[str, "Target datasource name"], 
     query: Annotated[str, "SQL Query"]
 ) -> ExecuteQueryResult:
-    """
-    Execute a SQL query against a SQL datasource and return the results.
-    Supports both 'sql_endpoint' and 'sql_database' types.
-    Only SELECT statements are allowed.
-    """
     try:
-        # Fetch the datasource configuration
         cosmosdb = CosmosDBClient()
         datasources_container = os.environ.get('DATASOURCES_CONTAINER', 'datasources')
         datasource_config = await cosmosdb.get_document(datasources_container, datasource)
-
         if not datasource_config:
             return ExecuteQueryResult(error=f"{datasource} datasource configuration not found.")
-
-        # Determine datasource type and initialize the appropriate client
         datasource_type = datasource_config.get("type")
-        
         if datasource_type == "sql_endpoint":
             sql_endpoint_config = SQLEndpointConfig(
                 id=datasource_config.get("id"),
@@ -81,7 +67,6 @@ async def execute_sql_query(
                 client_id=datasource_config.get("client_id")
             )
             sql_client = SQLEndpointClient(sql_endpoint_config)
-
         elif datasource_type == "sql_database":
             sql_database_config = SQLDatabaseConfig(
                 id=datasource_config.get("id"),
@@ -92,27 +77,16 @@ async def execute_sql_query(
                 uid=datasource_config.get("uid", None)
             )
             sql_client = SQLDBClient(sql_database_config)
-
         else:
             return ExecuteQueryResult(error="Datasource type not supported for SQL queries.")
-
-        # Create a connection and execute the query
         connection = await sql_client.create_connection()
         cursor = connection.cursor()
-
-        # Validate that only SELECT statements are allowed
         if not query.strip().lower().startswith('select'):
             return ExecuteQueryResult(error="Only SELECT statements are allowed.")
-
         cursor.execute(query)
-        
-        # Fetch and structure the results
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
         results = [dict(zip(columns, row)) for row in rows]
-
         return ExecuteQueryResult(results=results)
-
     except Exception as e:
-        # Handle any exceptions and return the error
         return ExecuteQueryResult(error=str(e))

@@ -66,7 +66,7 @@ The **GPT-RAG Agentic Orchestrator** provides a range of agent strategies to han
 
 ### How to Select a Strategy
 
-The orchestrator selects the agent strategy based on the `AUTOGEN_ORCHESTRATION_STRATEGY` environment variable. Be sure to set this variable to the name of the desired strategy. If you're running the chat client locally, set this variable in your shell environment. For deployments as a Function App, define it in the application settings.
+The orchestrator selects the agent strategy based on the `ORCHESTRATION_STRATEGY` environment variable. Be sure to set this variable to the name of the desired strategy. If you're running the chat client locally, set this variable in your shell environment. For deployments as a Function App, define it in the application settings.
 
 #### Available Strategies
 
@@ -125,7 +125,7 @@ Define custom agent strategies by specifying distinctive agent behaviors. To cre
                raise ValueError(f"Unknown strategy type: {strategy_type}")
    ```
 
-Ensure the `AUTOGEN_ORCHESTRATION_STRATEGY` environment variable is correctly set to the desired strategy name, whether a predefined strategy or a custom one you’ve implemented.
+Ensure the `ORCHESTRATION_STRATEGY` environment variable is correctly set to the desired strategy name, whether a predefined strategy or a custom one you’ve implemented.
 
 > [!NOTE]
 > The name `custom` is used here as an example. You should choose a name that best represents your specific case.
@@ -143,7 +143,7 @@ To successfully run the orchestrator Function App, you must configure the follow
 | **Variable**                         | **Description** |
 |--------------------------------------|-----------------|
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Connection string for Application Insights (telemetry and monitoring). |
-| `AUTOGEN_ORCHESTRATION_STRATEGY`       | The agent orchestration strategy (e.g., `multimodal_rag`). |
+| `ORCHESTRATION_STRATEGY`       | The agent orchestration strategy (e.g., `multimodal_rag`). |
 | `AZURE_DB_ID`                        | Cosmos DB account ID (used to construct the Cosmos DB endpoint). |
 | `AZURE_DB_NAME`                      | Name of the Cosmos DB database. |
 | `AZURE_KEY_VAULT_NAME`               | Name of your Azure Key Vault (used for secrets retrieval). |

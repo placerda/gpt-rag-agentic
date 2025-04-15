@@ -2,63 +2,48 @@ import logging
 import os
 import re
 
-from connectors import AzureOpenAIClient
-from azure.identity import ManagedIdentityCredential, AzureCliCredential, ChainedTokenCredential, get_bearer_token_provider
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
-from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
-from autogen_core.model_context import BufferedChatCompletionContext
-from autogen_core.models import SystemMessage
 from pydantic import BaseModel
 from ..constants import OutputFormat, OutputMode
-from autogen_agentchat.agents import AssistantAgent
 
-# Agent response types
+# Import Semantic Kernel components
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.openai import ChatCompletionAgent
+
+# Agent response types remain unchanged.
 class ChatGroupResponse(BaseModel):
     answer: str
     reasoning: str
 
 class BaseAgentStrategy:
     def __init__(self):
-        # Azure OpenAI model client configuration
+        # Configuration parameters from environment variables.
         self.aoai_resource = os.environ.get('AZURE_OPENAI_RESOURCE', 'openai')
         self.chat_deployment = os.environ.get('AZURE_OPENAI_CHATGPT_DEPLOYMENT', 'chat')
         self.model = os.environ.get('AZURE_OPENAI_CHATGPT_MODEL', 'gpt-4o')
         self.api_version = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-10-21')
         self.max_tokens = int(os.environ.get('AZURE_OPENAI_MAX_TOKENS', 1000))
         self.temperature = float(os.environ.get('AZURE_OPENAI_TEMPERATURE', 0.7))
-
-        # Autogen agent configuration (base to be overridden)
+        
+        # Agent configuration – used by orchestrators.
         self.agents = []
         self.terminate_message = "TERMINATE"
         self.max_rounds = int(os.getenv('MAX_ROUNDS', 8))
         self.selector_func = None
         self.context_buffer_size = int(os.getenv('CONTEXT_BUFFER_SIZE', 30))
-        self.text_only=False 
-        self.optimize_for_audio=False
+        self.text_only = False 
+        self.optimize_for_audio = False
 
     async def create_agents(self, history, client_principal=None, access_token=None, text_only=False, optimize_for_audio=False): 
         """
         Create agent instances for the strategy.
-
-        This method must be implemented by subclasses to define how agents
-        are created and configured for a given strategy.
-
-        Parameters:
-            history (list): The conversation history up to the current point.
-            client_principal (dict, optional): Information about the client principal, such as group memberships.
-
-        Raises:
-            NotImplementedError: If the method is not implemented in a subclass.
+        Must be overridden by subclasses.
         """
         raise NotImplementedError("This method should be overridden in subclasses.")
 
     def _get_agents_configuration(self):
         """
-        Retrieve the configuration for agents managed by this strategy.
-
-        Returns:
-            dict: A dictionary containing the model client, agents, termination condition,
-            and selector function.
+        Retrieve and return the configuration dictionary required by the orchestrators.
+        This includes the model client, agents list, termination details, and the selector function.
         """
         return {
             "model_client": self._get_model_client(),
@@ -73,73 +58,37 @@ class BaseAgentStrategy:
 
     def _get_model_client(self, response_format=None):
         """
-        Set up the configuration for the Azure OpenAI language model client.
-
-        Initializes the `AzureOpenAIChatCompletionClient` with the required settings for
-        interaction with Azure OpenAI services.
+        Set up a Semantic Kernel language model client.
+        This method creates a new Kernel instance and returns a ChatCompletionAgent.
         """
-        token_provider = get_bearer_token_provider(
-            ChainedTokenCredential(
-                ManagedIdentityCredential(),
-                AzureCliCredential()
-            ), "https://cognitiveservices.azure.com/.default"
-        )
-        return AzureOpenAIChatCompletionClient(
-            azure_deployment=self.chat_deployment,
+        kernel = Kernel()
+        agent = ChatCompletionAgent(
+            kernel=kernel,
+            deployment_name=self.chat_deployment,
             model=self.model,
-            azure_endpoint=f"https://{self.aoai_resource}.openai.azure.com",
-            azure_ad_token_provider=token_provider,
-            api_version=self.api_version,
-            temperature=self.temperature,
+            # "instructions" will be set later, such as via the prompt.
+            instructions="",
             max_tokens=self.max_tokens,
+            temperature=self.temperature,
             response_format=response_format
         )
+        logging.info("Semantic Kernel ChatCompletionAgent instantiated successfully.")
+        return agent
 
     def _get_termination_condition(self):
         """
-        Define the termination condition for agent interactions.
-
-        Returns:
-            Condition or None: A combined condition object or None if no conditions are specified.
+        Define a termination condition for agent interactions.
+        This is a simple lambda that checks whether the response ends with the terminate message.
         """
-        conditions = []
-
-        if self.terminate_message is not None:
-            conditions.append(TextMentionTermination(self.terminate_message))
-
-        if self.max_rounds is not None:
-            conditions.append(MaxMessageTermination(max_messages=self.max_rounds))
-
-        if not conditions:
-            return None
-
-        termination_condition = conditions[0]
-        for condition in conditions[1:]:
-            termination_condition |= condition
-
-        return termination_condition
+        return lambda response: response.strip().endswith(self.terminate_message)
 
     async def _summarize_conversation(self, history: list) -> str:
         """
         Summarize the conversation history.
-
-        Parameters:
-            history (list): A list of messages representing the conversation history.
-
-        Returns:
-            str: A summary of the conversation, including main topics, decisions, questions,
-            unresolved issues, and document identifiers if mentioned.
+        In this simplified example, join the 'content' field of each message.
         """
         if history:
-            aoai = AzureOpenAIClient()
-            prompt = (
-                "Please summarize the following conversation, highlighting the main topics discussed, the specific subject "
-                "if mentioned, any decisions made, questions raised, and any unresolved issues or actions pending. "
-                "If there is a document or object mentioned with an identifying number, include that information for future reference. "
-                "If there is there is no specific content or dialogue included to summarize you can say the conversation just started."                
-                f"Conversation history: \n{history}"
-            )
-            conversation_summary = aoai.get_completion(prompt)
+            conversation_summary = "\n".join(item.get("content", "") for item in history)
         else:
             conversation_summary = "The conversation just started."
         logging.info(f"[base_agent_strategy] Conversation summary: {conversation_summary[:200]}")
@@ -147,156 +96,92 @@ class BaseAgentStrategy:
 
     def _generate_security_ids(self, client_principal):
         """
-        Generate security identifiers based on the client principal.
-
-        Parameters:
-            client_principal (dict): Information about the client principal, including the user ID
-            and group names.
-
-        Returns:
-            str: A string representing the security identifiers, combining the user ID and group names.
+        Generate a security identifier string based on the client principal.
         """
         security_ids = 'anonymous'
         if client_principal is not None:
-            group_names = client_principal['group_names']
-            security_ids = f"{client_principal['id']}" + (f",{group_names}" if group_names else "")
+            group_names = client_principal.get('group_names', '')
+            security_ids = f"{client_principal.get('id', 'unknown')}" + (f",{group_names}" if group_names else "")
         return security_ids
 
     async def _read_prompt(self, prompt_name, placeholders=None):
         """
-        Load and process a prompt file, applying strategy-based variants and placeholder replacements.
-
-        This method reads a prompt file associated with a given agent, supporting optional variants
-        (e.g., audio-optimized or text-only) and dynamic placeholder substitution.
-
-        **Prompt Directory Structure**:
-        - Prompts are stored in the `prompts/` directory.
-        - If a strategy type is defined (`self.strategy_type`), the file is expected in a subdirectory:
-          `prompts/<strategy_type>/`.
-
-        **Prompt File Naming Convention**:
-        - The filename is based on the provided `prompt_name`: `<prompt_name>.txt`.
-        - You can pre-define variants externally using names like `<prompt_name>_audio.txt` or 
-          `<prompt_name>_text_only.txt`, but this method does not automatically append suffixes. 
-          Suffix logic must be handled when building `prompt_name`.
-
-        **Placeholder Substitution**:
-        - If a `placeholders` dictionary is provided, placeholders in the format `{{key}}` are replaced by
-          their corresponding values.
-        - If any `{{key}}` remains after substitution, the method checks for a fallback file:
-          `prompts/common/<key>.txt`. If found, its content replaces the placeholder.
-        - If no replacement is available, a warning is logged.
-
-        **Example**:
-        For `prompt_name='agent1_audio'` and `self.strategy_type='customer_service'`, the file path would be:
-        `prompts/customer_service/agent1_audio.txt`
-
-        **Parameters**:
-        - prompt_name (str): The base name of the prompt file (without path, but may include variant suffix).
-        - placeholders (dict, optional): Mapping of placeholder names to their substitution values.
-
-        **Returns**:
-        - str: Final content of the prompt with placeholders replaced.
-
-        **Raises**:
-        - FileNotFoundError: If the specified prompt file does not exist.
+        Load and process a prompt file with optional placeholder substitutions.
+        The prompt file is determined by the current strategy's type.
         """
- 
-        # Construct the prompt file path
         prompt_file_path = os.path.join(self._prompt_dir(), f"{prompt_name}.txt")
-
         if not os.path.exists(prompt_file_path):
             logging.error(f"[base_agent_strategy] Prompt file '{prompt_name}' not found: {prompt_file_path}.")
             raise FileNotFoundError(f"Prompt file '{prompt_name}' not found.")
-
         logging.info(f"[base_agent_strategy] Using prompt file path: {prompt_file_path}")
-        
-        # Read and process the selected prompt file
         with open(prompt_file_path, "r") as f:
             prompt = f.read().strip()
-            
-            # Replace placeholders provided in the 'placeholders' dictionary
-            if placeholders:
-                for key, value in placeholders.items():
-                    prompt = prompt.replace(f"{{{{{key}}}}}", value)
-            
-            # Find any remaining placeholders in the prompt
-            pattern = r"\{\{([^}]+)\}\}"
-            matches = re.findall(pattern, prompt)
-            
-            # Process each unmatched placeholder
-            for placeholder_name in set(matches):
-                # Skip if placeholder was already replaced
-                if placeholders and placeholder_name in placeholders:
-                    continue
-                # Look for a corresponding file in 'prompts/common'
-                common_file_path = os.path.join("prompts", "common", f"{placeholder_name}.txt")
-                if os.path.exists(common_file_path):
-                    with open(common_file_path, "r") as pf:
-                        placeholder_content = pf.read().strip()
-                        prompt = prompt.replace(f"{{{{{placeholder_name}}}}}", placeholder_content)
-                else:
-                    # Log a warning if the placeholder cannot be replaced
-                    logging.warning(
-                        f"[base_agent_strategy] Placeholder '{{{{{placeholder_name}}}}}' could not be replaced."
-                    )
-            return prompt
-
-
-        
+        if placeholders:
+            for key, value in placeholders.items():
+                prompt = prompt.replace(f"{{{{{key}}}}}", value)
+        pattern = r"\{\{([^}]+)\}\}"
+        matches = re.findall(pattern, prompt)
+        for placeholder_name in set(matches):
+            if placeholders and placeholder_name in placeholders:
+                continue
+            common_file_path = os.path.join("prompts", "common", f"{placeholder_name}.txt")
+            if os.path.exists(common_file_path):
+                with open(common_file_path, "r") as pf:
+                    placeholder_content = pf.read().strip()
+                    prompt = prompt.replace(f"{{{{{placeholder_name}}}}}", placeholder_content)
+            else:
+                logging.warning(f"[base_agent_strategy] Placeholder '{{{{{placeholder_name}}}}}' could not be replaced.")
+        return prompt
 
     def _prompt_dir(self):
-            """
-            Returns the directory path for prompts based on the strategy type.
-        
-            If the 'strategy_type' attribute is not defined, a ValueError is raised.
-            The directory path will include the strategy type as a subdirectory.
-        
-            Returns:
-                str: The directory path for prompts.
-            """
-            if not hasattr(self, 'strategy_type'):
-                raise ValueError("strategy_type is not defined")        
-            prompts_dir = "prompts" + "/" + self.strategy_type.value
-            return prompts_dir
+        """
+        Return the prompt directory based on the strategy's type.
+        """
+        if not hasattr(self, 'strategy_type'):
+            raise ValueError("strategy_type is not defined")
+        return os.path.join("prompts", self.strategy_type.value)
 
     async def _get_model_context(self, history):
         """
-        Add the conversation summary as the model context.
-        """        
+        Obtain a summary of the conversation history to use as context.
+        """
         history_summary = await self._summarize_conversation(history)
-        initial_messages = []
-        initial_messages.append(SystemMessage(content=f"Summary of Conversation History to Assist with Follow-Up Questions: {history_summary}"))
-        return BufferedChatCompletionContext(buffer_size=self.context_buffer_size, initial_messages=initial_messages)
-    
+        return history_summary
 
     async def _create_chat_closure_agent(self, output_format, output_mode):
         """
         Create a chat closure agent based on the specified output format and mode.
-
-        Parameters:
-            output_format (OutputFormat): The desired output format (e.g., TEXT_TTS, JSON, TEXT).
-            output_mode (OutputMode): The desired output mode (e.g., STREAMING or non-streaming).
-
-        Returns:
-            AssistantAgent: The configured chat closure agent.
-
-        Raises:
-            ValueError: If output_format or output_mode is None.
+        This instantiates a separate ChatCompletionAgent using a designated prompt.
         """
         if output_format is None or output_mode is None:
             raise ValueError("Both output_format and output_mode must be specified.")
-
         if output_format == OutputFormat.TEXT_TTS:
             prompt_name = "chat_closure_tts"
         elif output_format == OutputFormat.JSON:
             prompt_name = "chat_closure_json"
         elif output_format == OutputFormat.TEXT:
             prompt_name = "chat_closure_text"
-
-        return AssistantAgent(
-            name="chat_closure",
-            system_message=await self._read_prompt(prompt_name),
-            model_client=self._get_model_client() if output_mode == OutputMode.STREAMING else self._get_model_client(response_format=ChatGroupResponse),
-            model_client_stream=True if output_mode == OutputMode.STREAMING else False
+        instructions = await self._read_prompt(prompt_name)
+        closure_agent = ChatCompletionAgent(
+            kernel=Kernel(),  # Optionally, reuse an existing Kernel instance.
+            deployment_name=self.chat_deployment,
+            model=self.model,
+            instructions=instructions,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            response_format=None
         )
+        return closure_agent
+
+    async def invoke_agent_stream(self, agent, task: str):
+        """
+        Abstract the streaming invocation of a Semantic Kernel agent.
+        This async generator yields text chunks as they arrive from the agent's streaming interface.
+        """
+        try:
+            async for response in agent.invoke_stream(messages=[f"User: {task}"]):
+                # Assume the response object has a 'text' attribute.
+                yield getattr(response, "text", str(response))
+        except Exception as e:
+            logging.error(f"Error during streaming invocation: {e}")
+            yield f"Error: {e}"

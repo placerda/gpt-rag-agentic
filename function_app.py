@@ -1,14 +1,11 @@
 # function_app.py
 import asyncio
-import datetime
 import os
-import re
-import json
 import logging
 import warnings
 import azure.functions as func
 from azurefunctions.extensions.http.fastapi import Request, StreamingResponse, JSONResponse
-from orchestration import RequestResponseOrchestrator, StreamingOrchestrator, OrchestratorConfig
+from orchestration import StreamingOrchestrator, OrchestratorConfig
 
 # User Warning configuration
 import warnings
@@ -38,27 +35,6 @@ logging.getLogger("uvicorn.access").propagate = True
 
 # Create the Function App with the desired auth level.
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
-
-@app.route(route="orc", methods=[func.HttpMethod.POST])
-async def orc(req: Request) -> JSONResponse:
-    data = await req.json()
-    conversation_id = data.get("conversation_id")
-    question = data.get("question")
-
-    # Gather client principal info (optional)
-    client_principal = {
-        "id": data.get("client_principal_id", "00000000-0000-0000-0000-000000000000"),
-        "name": data.get("client_principal_name", "anonymous"),
-        "group_names": data.get("client_group_names", "")
-    }
-    access_token = data.get("access_token", None)
-    
-    if question:
-        orchestrator = RequestResponseOrchestrator(conversation_id, OrchestratorConfig(), client_principal, access_token)
-        result = await orchestrator.answer(question)
-        return JSONResponse(content=result)
-    else:
-        return JSONResponse(content={"error": "no question found in json input"}, status_code=400)
 
 @app.route(route="orcstream", methods=[func.HttpMethod.POST])
 async def orchestrator_streaming(req: Request) -> StreamingResponse:

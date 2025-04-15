@@ -40,6 +40,6 @@
     "AZURE_STORAGE_ACCOUNT": "You Azure Storage Account",
     "AZURE_STORAGE_CONTAINER: "documents",
 
-    "AUTOGEN_ORCHESTRATION_STRATEGY": "classic_rag"
+    "ORCHESTRATION_STRATEGY": "classic_rag"
   }
 }
