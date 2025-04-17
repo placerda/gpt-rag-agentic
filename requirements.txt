@@ -14,7 +14,7 @@ openai==1.66.3
 semantic-kernel
 aiohttp==3.10.11
 # pydantic==1.10.13
-pydantic==2.10.6
+pydantic==1.1.0
 
 # NL2SQL dependencies
 sqlparse==0.5.1
