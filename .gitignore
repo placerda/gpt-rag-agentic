@@ -12,8 +12,6 @@ __*/*
 *.bkp
 *.xlsx
 *.custom.*
-.vscode
-.vscode/*
 output.log
 responses_*.jsonl
 responses_*.xslx

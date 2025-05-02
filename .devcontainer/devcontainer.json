@@ -1,0 +1,17 @@
+{
+  "name": "FastAPI Dev Container",
+  "build": { "dockerfile": "../Dockerfile" },
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "appPort": [80],
+  "settings": {
+    "git.path": "/usr/bin/git",
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-python.debugpy"
+  ],
+  "postCreateCommand": "pip install debugpy"
+}

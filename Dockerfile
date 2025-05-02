@@ -1,21 +1,21 @@
-# Escolhe uma imagem base oficial do Python (por exemplo, Python 3.12 slim)
+# Choose an official base image for Python (e.g., Python 3.12 slim)
 FROM python:3.12-slim
 
-# Define o diretório de trabalho dentro do container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copia os arquivos de requirements
+# Copy the requirements file
 COPY requirements.txt .
 
-# Instala as dependências
+# Install dependencies
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Copia o restante do código da aplicação para dentro do container
+# Copy the rest of the application code into the container
 COPY . .
 
-# Expõe a porta em que a aplicação irá rodar (p.ex.: 8000)
-EXPOSE 8000
+# Expose the port the application will run on (e.g., 8000)
+EXPOSE 80
 
-# Define o comando de entrada: iniciar o servidor Uvicorn com FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Define the entry command: start the Uvicorn server with FastAPI
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
