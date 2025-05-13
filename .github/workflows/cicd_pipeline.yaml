@@ -16,8 +16,11 @@ jobs:
 
       - name: Install Azure Developer CLI (from GitHub)
         run: |
-          AZD_VERSION="1.12.0"
-          wget https://github.com/Azure/azure-dev/releases/download/v${AZD_VERSION}/azd-linux-amd64.tar.gz
+          # Pin to the matching GitHub release tag
+          AZD_VERSION="1.15.1"
+          AZD_TAG="azure-dev-cli_${AZD_VERSION}"
+          echo "Installing azd (${AZD_TAG})…"
+          wget "https://github.com/Azure/azure-dev/releases/download/${AZD_TAG}/azd-linux-amd64.tar.gz"
           tar -xzf azd-linux-amd64.tar.gz
           sudo mv azd /usr/local/bin/
 
