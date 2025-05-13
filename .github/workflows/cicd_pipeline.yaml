@@ -14,15 +14,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Azure Developer CLI (from GitHub)
-        run: |
-          # Pin to the matching GitHub release tag
-          AZD_VERSION="1.15.1"
-          AZD_TAG="azure-dev-cli_${AZD_VERSION}"
-          echo "Installing azd (${AZD_TAG})…"
-          wget "https://github.com/Azure/azure-dev/releases/download/${AZD_TAG}/azd-linux-amd64.tar.gz"
-          tar -xzf azd-linux-amd64.tar.gz
-          sudo mv azd /usr/local/bin/
+      - name: Install Azure Developer CLI
+        uses: Azure/setup-azd@v2
 
       - name: Login to Azure CLI
         uses: azure/login@v2
