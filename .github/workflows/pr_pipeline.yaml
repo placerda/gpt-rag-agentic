@@ -33,8 +33,3 @@ jobs:
           chmod +x evaluation/evaluate.sh
           ./evaluation/evaluate.sh
 
-      - name: Upload evaluation results
-        uses: actions/upload-artifact@v2
-        with:
-          name: evaluation-results
-          path: evaluation/evaluation-results.json
