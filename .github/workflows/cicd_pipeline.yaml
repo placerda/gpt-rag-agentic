@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
-    # pull your four dev-environment variables
     env:
       AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
@@ -21,9 +20,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Azure Developer CLI
+      - name: Install Azure Developer CLI (v1.15.1)
         uses: Azure/setup-azd@v2
-        # omit `version:` to grab the latest (1.15.1+)
+        with:
+          version: '1.15.1'
 
       - name: Login to Azure CLI
         uses: azure/login@v2
@@ -33,8 +33,10 @@ jobs:
       - name: Set Azure subscription
         run: az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 
-      - name: Authenticate azd to use Azure CLI context
-        run: azd auth login --use-azure-cli
+      - name: Verify azd version & auth
+        run: |
+          azd --version
+          azd auth login --use-azure-cli
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
