@@ -9,18 +9,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: dev
-    env:
-      AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Azure Developer CLI
-        uses: Azure/setup-azd@v1.0.0
+      - name: Install Azure Developer CLI (from GitHub)
+        run: |
+          AZD_VERSION="1.12.0"
+          wget https://github.com/Azure/azure-dev/releases/download/v${AZD_VERSION}/azd-linux-amd64.tar.gz
+          tar -xzf azd-linux-amd64.tar.gz
+          sudo mv azd /usr/local/bin/
 
       - name: Login to Azure CLI
         uses: azure/login@v2
@@ -32,9 +31,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Initialize and deploy with azd
+      - name: Initialize & deploy with azd
         run: |
-          azd init -e $AZURE_ENV_NAME -l $AZURE_LOCATION -s $AZURE_SUBSCRIPTION_ID --no-prompt
-          azd env set AZURE_RESOURCE_GROUP $AZURE_RESOURCE_GROUP --no-prompt
+          azd init \
+            -e "$AZURE_ENV_NAME" \
+            -l "$AZURE_LOCATION" \
+            -s "$AZURE_SUBSCRIPTION_ID" \
+            --no-prompt
+
+          azd env set AZURE_RESOURCE_GROUP "$AZURE_RESOURCE_GROUP" --no-prompt
           azd env refresh --no-prompt
           azd deploy --no-prompt

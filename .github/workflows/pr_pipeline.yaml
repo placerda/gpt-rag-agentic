@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     env:
-      APP_CONFIG_ENDPOINT: ${{ secrets.APP_CONFIG_ENDPOINT }}
+      APP_CONFIG_ENDPOINT: ${{ vars.AZURE_APP_CONFIG_ENDPOINT }}
 
     steps:
       - name: Checkout code
@@ -32,7 +32,7 @@ jobs:
           ./evaluation/evaluate.sh
 
       - name: Upload evaluation results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: evaluation-results
           path: evaluation/evaluation-results.json
