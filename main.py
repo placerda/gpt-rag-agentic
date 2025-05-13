@@ -107,7 +107,7 @@ async def orcstream_endpoint(request: Request):
                 # get the .content attribute (may be None)
                 delta = getattr(choice.delta, "content", None)
                 if delta:
-                    yield f"{delta}\n\n"
+                    yield f"{delta}"
 
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
