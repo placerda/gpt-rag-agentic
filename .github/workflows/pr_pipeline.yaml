@@ -9,12 +9,14 @@ jobs:
   evaluations:
     runs-on: ubuntu-latest
     environment: dev
-    env:
-      APP_CONFIG_ENDPOINT: ${{ vars.AZURE_APP_CONFIG_ENDPOINT }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug APP_CONFIG_ENDPOINT
+        run: |
+          echo "APP_CONFIG_ENDPOINT=[$APP_CONFIG_ENDPOINT]"
 
       - name: Login to Azure CLI
         uses: azure/login@v2

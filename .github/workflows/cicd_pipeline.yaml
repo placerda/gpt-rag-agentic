@@ -8,16 +8,14 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    # Target your "dev" environment so you can pull its vars & secrets
     environment: dev
 
-    # Explicitly map in all four values
+    # Pull _all_ four values from your dev environment's VARIABLES
     env:
-      AZURE_ENV_NAME:       ${{ vars.AZURE_ENV_NAME }}
-      AZURE_LOCATION:       ${{ vars.AZURE_LOCATION }}
-      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
+      AZURE_RESOURCE_GROUP:  ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
     steps:
       - name: Checkout code
@@ -38,12 +36,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Dump AZD vars
+      - name: Dump AZD vars (sanity check)
         run: |
-          echo "AZURE_ENV_NAME=$AZURE_ENV_NAME"
-          echo "AZURE_LOCATION=$AZURE_LOCATION"
-          echo "AZURE_RESOURCE_GROUP=$AZURE_RESOURCE_GROUP"
-          echo "AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID"
+          echo "ENV_NAME=[$AZURE_ENV_NAME]"
+          echo "LOCATION=[$AZURE_LOCATION]"
+          echo "RESOURCE_GROUP=[$AZURE_RESOURCE_GROUP]"
+          echo "SUBSCRIPTION_ID=[$AZURE_SUBSCRIPTION_ID]"
 
       - name: Initialize & deploy with azd
         run: |
