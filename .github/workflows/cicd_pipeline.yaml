@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
-    # Pull _all_ four values from your dev environment's VARIABLES
+    # Pull your four "dev" environment variables
     env:
       AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
@@ -24,6 +24,7 @@ jobs:
       - name: Install Azure Developer CLI
         uses: Azure/setup-azd@v2
         with:
+          # pin if you like, or omit for latest
           version: '1.15.0'
 
       - name: Login to Azure CLI
@@ -31,12 +32,25 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Set Azure subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Authenticate azd CLI
+        run: |
+          azd auth login \
+            --service-principal \
+            --client-id     "$AZURE_CLIENT_ID" \
+            --client-secret "$AZURE_CLIENT_SECRET" \
+            --tenant-id     "$AZURE_TENANT_ID"
+
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Dump AZD vars (sanity check)
+      # optional sanity check
+      - name: Dump AZD vars
         run: |
           echo "ENV_NAME=[$AZURE_ENV_NAME]"
           echo "LOCATION=[$AZURE_LOCATION]"
