@@ -10,11 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
+    # Inject all four azd vars plus your SP secrets
     env:
       AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
       AZURE_RESOURCE_GROUP:  ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
 
     steps:
       - name: Checkout code
@@ -31,11 +35,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set Azure subscription
-        run: |
-          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
-
-      - name: Authenticate azd CLI (via Azure CLI session)
-        run: azd auth login --use-azure-cli
+        run: az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
