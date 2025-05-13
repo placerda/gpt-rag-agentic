@@ -8,6 +8,7 @@ azure-storage-blob==12.25.1
 azure-appconfiguration==1.7.1
 azure-ai-projects==1.0.0b10
 azure-search-documents==11.5.2
+openai==1.69.0
 
 # Evaluation
 azure-ai-inference[prompts]
