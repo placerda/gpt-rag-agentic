@@ -17,6 +17,15 @@ responses_*.jsonl
 responses_*.xslx
 config.txt
 __azurite*
+.git*
+__azurite_db*__.json
+__blobstorage__
+__queuestorage__
+local.settings.json
+test
+.venv
+local
+.local
 
 # Evaluations
 qa_flow_quality_eval.jsonl
@@ -148,8 +157,10 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv_temp
 env/
 venv/
+venv_temp/
 ENV/
 env.bak/
 venv.bak/
