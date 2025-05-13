@@ -96,6 +96,8 @@ async def orcstream_endpoint(request: Request):
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user",   "content": rag_prompt}
                 ],
+                max_tokens=1024,   
+                temperature=0.7,            
                 stream=True
             )
             for chunk in stream:
