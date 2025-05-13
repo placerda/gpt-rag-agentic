@@ -10,20 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
+    # Pull all four dev-environment variables and your SP secrets
     env:
       AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
       AZURE_RESOURCE_GROUP:  ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Azure Developer CLI (v1.15.1)
+      - name: Install Azure Developer CLI (latest)
         uses: Azure/setup-azd@v2
-        with:
-          version: '1.15.1'
+
+      - name: Verify azd version
+        run: |
+          azd version 
 
       - name: Login to Azure CLI
         uses: azure/login@v2
@@ -31,12 +37,16 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set Azure subscription
-        run: az account set --subscription "$AZURE_SUBSCRIPTION_ID"
-
-      - name: Verify azd version & auth
         run: |
-          azd --version
-          azd auth login --use-azure-cli
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+
+      - name: Authenticate azd via service principal
+        run: |
+          azd auth login \
+            --client-id     "$AZURE_CLIENT_ID" \
+            --client-secret "$AZURE_CLIENT_SECRET" \
+            --tenant-id     "$AZURE_TENANT_ID" \
+            --output none   
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
