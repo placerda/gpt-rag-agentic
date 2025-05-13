@@ -17,7 +17,6 @@ responses_*.jsonl
 responses_*.xslx
 config.txt
 __azurite*
-.git*
 __azurite_db*__.json
 __blobstorage__
 __queuestorage__
