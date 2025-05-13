@@ -67,14 +67,16 @@ if __name__ == "__main__":
         evaluation_name="evaluate_contoso_similarity",
         evaluators={"similarity": similarity},
         evaluator_config={
-            "default": {
-                "query": {"${data.query}"},
-                "response": {"${target.response}"},
-                "ground_truth": {"${data.truth}"},
+            "similarity": {
+                "column_mapping": {
+                    "query":        "${data.query}",
+                    "response":     "${target.response}",
+                    "ground_truth":"${data.truth}"
+                }
             }
-        },
+        },        
         azure_ai_project=project.scope,
-        output_path="./myevalresults.json",
+        output_path="evaluation/evaluation-results.json",
     )
 
     # show results

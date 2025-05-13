@@ -26,6 +26,7 @@ test
 .venv
 local
 .local
+evaluation-results.json
 
 # Evaluations
 qa_flow_quality_eval.jsonl
