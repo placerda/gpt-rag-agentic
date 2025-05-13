@@ -10,6 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
 
+    # Pull all four dev-environment variables and your SP secrets
+    env:
+      AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
+      AZURE_RESOURCE_GROUP:  ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      APP_CONFIG_ENDPOINT:   ${{ vars.APP_CONFIG_ENDPOINT }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
