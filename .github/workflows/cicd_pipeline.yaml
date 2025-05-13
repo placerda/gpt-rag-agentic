@@ -8,7 +8,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # Target your "dev" environment so you can pull its vars & secrets
     environment: dev
+
+    # Explicitly map in all four values
+    env:
+      AZURE_ENV_NAME:       ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION:       ${{ vars.AZURE_LOCATION }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     steps:
       - name: Checkout code
@@ -16,6 +25,8 @@ jobs:
 
       - name: Install Azure Developer CLI
         uses: Azure/setup-azd@v2
+        with:
+          version: '1.15.0'
 
       - name: Login to Azure CLI
         uses: azure/login@v2
@@ -26,6 +37,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Dump AZD vars
+        run: |
+          echo "AZURE_ENV_NAME=$AZURE_ENV_NAME"
+          echo "AZURE_LOCATION=$AZURE_LOCATION"
+          echo "AZURE_RESOURCE_GROUP=$AZURE_RESOURCE_GROUP"
+          echo "AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID"
 
       - name: Initialize & deploy with azd
         run: |
