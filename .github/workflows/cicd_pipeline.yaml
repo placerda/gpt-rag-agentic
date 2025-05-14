@@ -16,10 +16,9 @@ jobs:
       AZURE_LOCATION:        ${{ vars.AZURE_LOCATION }}
       AZURE_RESOURCE_GROUP:  ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-
+      AZURE_CLIENT_SECRET:   ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
+      AZURE_TENANT_ID:       ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+      AZURE_CLIENT_ID:       ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
