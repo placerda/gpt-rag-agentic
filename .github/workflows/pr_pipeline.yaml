@@ -27,7 +27,7 @@ jobs:
 
       - name: Debug APP_CONFIG_ENDPOINT
         run: |
-          echo "APP_CONFIG_ENDPOINT=[$APP_CONFIG_ENDPOINT]"
+          echo "APP_CONFIG_ENDPOINT=[$APP_CONFIG_ENDPOINT]" 
 
       - name: Login to Azure CLI
         uses: azure/login@v2
@@ -44,3 +44,8 @@ jobs:
           chmod +x evaluation/evaluate.sh
           ./evaluation/evaluate.sh
 
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v3
+        with:
+          name: evaluation-results
+          path: evaluation/evaluation-results.json

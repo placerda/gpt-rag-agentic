@@ -45,7 +45,16 @@ jobs:
         with:
           python-version: '3.12'
 
-          
+      - name: Login to Azure Developer CLI 
+        shell: bash
+        run: |
+          echo "Logging to Azure Developer CLI..."
+          AZURE_CREDENTIALS=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r .)
+          CLIENT_ID=$(echo $AZURE_CREDENTIALS | jq -r .clientId)
+          CLIENT_SECRET=$(echo $AZURE_CREDENTIALS | jq -r .clientSecret)
+          TENANT_ID=$(echo $AZURE_CREDENTIALS | jq -r .tenantId)
+          azd auth login --client-id $CLIENT_ID --client-secret $CLIENT_SECRET --tenant-id $TENANT_ID
+
       - name: Initialize & deploy with azd
         run: |
           azd init \
