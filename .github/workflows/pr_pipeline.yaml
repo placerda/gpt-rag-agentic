@@ -45,7 +45,7 @@ jobs:
           ./evaluation/evaluate.sh
 
       - name: Upload evaluation results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: evaluation-results
           path: evaluation/evaluation-results.json
