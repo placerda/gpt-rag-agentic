@@ -34,7 +34,7 @@ client = TestClient(app)
 # 4) Prepare your AI Project client and SimilarityEvaluator
 project = AIProjectClient.from_connection_string(
     conn_str=os.environ["AI_FOUNDRY_PROJECT_CONNECTION_STRING"],
-    credential=DefaultAzureCredential()
+    credential=AzureCliCredential() 
 )
 connection = project.connections.get(
     connection_name=os.environ.get("OPENAI_CONNECTION_NAME", "openai-apim-conn"),
