@@ -10,6 +10,7 @@ from azure.identity import (
     ChainedTokenCredential,
     ManagedIdentityCredential,
     AzureCliCredential,
+    EnvironmentCredential,
     DefaultAzureCredential
 )
 from azure.appconfiguration import AzureAppConfigurationClient
@@ -20,7 +21,11 @@ from azure.ai.evaluation import evaluate, SimilarityEvaluator
 from main import app  
 
 # 2) Load Azure App Configuration (label="orchestrator") into env
-cred = ChainedTokenCredential(ManagedIdentityCredential(), AzureCliCredential())
+cred = ChainedTokenCredential(
+    EnvironmentCredential(),
+    AzureCliCredential(),
+    ManagedIdentityCredential()
+)
 cfg_endpoint = os.getenv("APP_CONFIG_ENDPOINT")
 if not cfg_endpoint:
     raise EnvironmentError("APP_CONFIG_ENDPOINT must be set")
@@ -34,7 +39,7 @@ client = TestClient(app)
 # 4) Prepare your AI Project client and SimilarityEvaluator
 project = AIProjectClient.from_connection_string(
     conn_str=os.environ["AI_FOUNDRY_PROJECT_CONNECTION_STRING"],
-    credential=AzureCliCredential() 
+    credential=cred
 )
 connection = project.connections.get(
     connection_name=os.environ.get("OPENAI_CONNECTION_NAME", "openai-apim-conn"),
