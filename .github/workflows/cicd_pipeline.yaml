@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: dev
-
+ 
     # Pull all four dev-environment variables and your SP secrets
     env:
       AZURE_ENV_NAME:        ${{ vars.AZURE_ENV_NAME }}
